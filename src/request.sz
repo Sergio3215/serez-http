@@ -1,0 +1,73 @@
+// HTTP/1.1 request parser
+
+fn parseRequest(raw) {
+    let sep = raw.indexOf("\r\n\r\n")
+    let header_section = raw
+    let body = ""
+    if (sep >= 0) {
+        header_section = raw.substring(0, sep)
+        body = raw.substring(sep + 4, raw.length())
+    }
+
+    let lines = header_section.split("\r\n")
+    let method = "GET"
+    let full_path = "/"
+    if (lines.length() > 0) {
+        let first = lines[0].split(" ")
+        if (first.length() > 0) { method = first[0] }
+        if (first.length() > 1) { full_path = first[1] }
+    }
+
+    let path = full_path
+    let query <string, string> = ()
+    let qi = full_path.indexOf("?")
+    if (qi >= 0) {
+        path = full_path.substring(0, qi)
+        let qs = full_path.substring(qi + 1, full_path.length())
+        let pairs = qs.split("&")
+        for (let pi = 0; pi < pairs.length(); pi = pi + 1) {
+            let kv = pairs[pi].split("=")
+            if (kv.length() >= 2) { query[kv[0]] = kv[1] }
+        }
+    }
+
+    let headers <string, string> = ()
+    let upgrade_val  = ""
+    let ws_key_val   = ""
+    let ct_val       = ""
+    let auth_val     = ""
+    let host_val     = ""
+    let ip_val       = "unknown"
+
+    for (let i = 1; i < lines.length(); i = i + 1) {
+        let line = lines[i]
+        let ci = line.indexOf(": ")
+        if (ci >= 0) {
+            let k = line.substring(0, ci).toLowerCase()
+            let v = line.substring(ci + 2, line.length())
+            headers[k] = v
+            if (k == "upgrade")           { upgrade_val = v.toLowerCase() }
+            if (k == "sec-websocket-key") { ws_key_val = v }
+            if (k == "content-type")      { ct_val = v }
+            if (k == "authorization")     { auth_val = v }
+            if (k == "host")              { host_val = v }
+            if (k == "x-forwarded-for")   { ip_val = v }
+        }
+    }
+
+    let params <string, string> = ()
+    let req <string, any> = ()
+    req["method"]        = method
+    req["path"]          = path
+    req["query"]         = query
+    req["params"]        = params
+    req["headers"]       = headers
+    req["body"]          = body
+    req["ip"]            = ip_val
+    req["upgrade"]       = upgrade_val
+    req["ws_key"]        = ws_key_val
+    req["content_type"]  = ct_val
+    req["authorization"] = auth_val
+    req["host"]          = host_val
+    return req
+}

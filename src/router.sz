@@ -1,0 +1,19 @@
+// Route pattern matching with :param capture
+
+fn matchRoute(pattern, path) {
+    let pp = pattern.split("/")
+    let rp = path.split("/")
+    if (pp.length() != rp.length()) { return null }
+    let params <string, string> = ()
+    for (let i = 0; i < pp.length(); i = i + 1) {
+        let seg = pp[i]
+        let real = rp[i]
+        if (seg.startsWith(":")) {
+            let name = seg.substring(1, seg.length())
+            params[name] = real
+        } else {
+            if (seg != real) { return null }
+        }
+    }
+    return params
+}

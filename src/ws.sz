@@ -1,0 +1,55 @@
+// WebSocket connection handler
+//
+// PENDIENTE: requiere que serez-code core implemente:
+//   Crypto.sha1base64(s)        — SHA-1 + base64 para el handshake
+//   Socket.recvWsFrame(conn_id) — decodifica frame WebSocket, retorna string o null
+//   Socket.sendWsFrame(conn_id, data) — codifica y envía frame WebSocket
+//
+// La API ya está definida y lista. Activar cuando el core lo soporte.
+
+export public class WsConn {
+    public WsConn(conn_id, req) {
+        this.conn_id = conn_id
+        this.req = req
+        this._msg_handler = null
+        this._close_handler = null
+        this._open = false
+    }
+
+    public _doHandshake() {
+        let key = this.req["ws_key"]
+        let magic = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+        let accept = Crypto.sha1base64(key + magic)
+        let resp = "HTTP/1.1 101 Switching Protocols\r\n"
+        resp = resp + "Upgrade: websocket\r\n"
+        resp = resp + "Connection: Upgrade\r\n"
+        resp = resp + "Sec-WebSocket-Accept: " + accept + "\r\n"
+        resp = resp + "\r\n"
+        Socket.send(this.conn_id, resp)
+        this._open = true
+    }
+
+    public on(event, handler) {
+        if (event == "message") { this._msg_handler = handler }
+        if (event == "close")   { this._close_handler = handler }
+    }
+
+    public send(msg) {
+        if (this._open) {
+            Socket.sendWsFrame(this.conn_id, msg)
+        }
+    }
+
+    public listen() {
+        while (this._open) {
+            let msg = Socket.recvWsFrame(this.conn_id)
+            if (msg == null) {
+                this._open = false
+                if (this._close_handler != null) { this._close_handler() }
+            } else {
+                if (this._msg_handler != null) { this._msg_handler(msg) }
+            }
+        }
+        Socket.close(this.conn_id)
+    }
+}

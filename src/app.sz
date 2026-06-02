@@ -1,0 +1,156 @@
+// Main App class — Express/Flask-style HTTP + WebSocket server
+//
+// API:
+//   app.GET(path, handler)    app.POST(path, handler)
+//   app.PUT(path, handler)    app.delete(path, handler)
+//   app.ws(path, handler)
+//   app.addMw(fn(req,res,next){})   ← middleware (use() is a keyword)
+//   app.error(fn(err,req,res){})
+//   app.listen(port, fn(){})
+//
+// Note: single-threaded — one connection at a time.
+
+export public class App {
+    public App() {
+        this.routes = []
+        this.middlewares = []
+        this.err_handler = null
+    }
+
+    public GET(path, handler) {
+        let r = {}
+        r["method"]  = "GET"
+        r["path"]    = path
+        r["handler"] = handler
+        this.routes.push(r)
+    }
+
+    public POST(path, handler) {
+        let r = {}
+        r["method"]  = "POST"
+        r["path"]    = path
+        r["handler"] = handler
+        this.routes.push(r)
+    }
+
+    public PUT(path, handler) {
+        let r = {}
+        r["method"]  = "PUT"
+        r["path"]    = path
+        r["handler"] = handler
+        this.routes.push(r)
+    }
+
+    public delete(path, handler) {
+        let r = {}
+        r["method"]  = "DELETE"
+        r["path"]    = path
+        r["handler"] = handler
+        this.routes.push(r)
+    }
+
+    public ws(path, handler) {
+        let r = {}
+        r["method"]  = "WS"
+        r["path"]    = path
+        r["handler"] = handler
+        this.routes.push(r)
+    }
+
+    public addMw(middleware) {
+        this.middlewares.push(middleware)
+    }
+
+    public error(handler) {
+        this.err_handler = handler
+    }
+
+    public rateLimit(ip, max, window_secs) {
+        return _rateLimit(ip, max, window_secs)
+    }
+
+    public listen(port, callback) {
+        let listener = Socket.listen(port)
+        callback()
+        while (true) {
+            let conn = Socket.accept(listener)
+            let raw = Socket.recv(conn, 65536)
+            if (raw.length() == 0) {
+                Socket.close(conn)
+            } else {
+                let req = parseRequest(raw)
+                if (req["upgrade"] == "websocket") {
+                    this._handleWs(req, conn)
+                } else {
+                    let res = new Response(conn)
+                    this._dispatch(req, res)
+                    if (!res.sent) {
+                        let e = {}
+                        e["error"] = "no response sent"
+                        res.status(500).json(e)
+                    }
+                    Socket.close(conn)
+                }
+            }
+        }
+    }
+
+    public _dispatch(req, res) {
+        let ok = this._runMw(req, res)
+        if (!ok) { return }
+        if (res.sent) { return }
+        let i = 0
+        let matched = false
+        while (i < this.routes.length() && !matched) {
+            let route = this.routes[i]
+            if (route["method"] == req["method"]) {
+                let params = matchRoute(route["path"], req["path"])
+                if (params != null) {
+                    req["params"] = params
+                    route["handler"](req, res)
+                    matched = true
+                }
+            }
+            i = i + 1
+        }
+        if (!matched && !res.sent) {
+            let nf = {}
+            nf["error"] = "Not Found"
+            nf["path"]  = req["path"]
+            res.status(404).json(nf)
+        }
+    }
+
+    public _runMw(req, res) {
+        let i = 0
+        while (i < this.middlewares.length()) {
+            res._next_pending = false
+            let mw = this.middlewares[i]
+            mw(req, res, fn() { res._next_pending = true })
+            if (!res._next_pending) { return false }
+            if (res.sent) { return false }
+            i = i + 1
+        }
+        return true
+    }
+
+    public _handleWs(req, conn) {
+        let ws = new WsConn(conn, req)
+        ws._doHandshake()
+        let i = 0
+        let matched = false
+        while (i < this.routes.length() && !matched) {
+            let route = this.routes[i]
+            if (route["method"] == "WS") {
+                let params = matchRoute(route["path"], req["path"])
+                if (params != null) {
+                    req["params"] = params
+                    route["handler"](req, ws)
+                    matched = true
+                }
+            }
+            i = i + 1
+        }
+        if (!matched) { Socket.close(conn) }
+    }
+}

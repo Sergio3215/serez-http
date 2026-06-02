@@ -1,0 +1,25 @@
+// serez-http — HTTP/WebSocket server library for Serez-Code
+// Version 1.0.0
+//
+// Usage:
+//   import "serez-http"
+//
+// Main API:
+//   App                        ← server class (get/post/put/delete/ws/use/error/listen)
+//   WsConn                     ← WebSocket connection (on/send/listen)
+//
+// Utilities (available after import):
+//   parseRequest(raw)          ← parse raw TCP string into request dict
+//   matchRoute(pattern, path)  ← route matching with :params
+//   corsMiddleware(...)        ← CORS middleware factory
+//
+// Security built into App:
+//   app.rateLimit(ip, max, window_secs) → bool
+
+import "src/request"
+import "src/response"
+import "src/router"
+import "src/security/rate_limit"
+import "src/security/cors"
+import "src/ws"
+import "src/app"

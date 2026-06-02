@@ -1,0 +1,37 @@
+// Per-IP sliding window rate limiter (in-memory, resets on server restart)
+//
+// _rateLimit(ip, max, window_secs) → bool
+
+let _rl = []
+
+fn _rateLimit(ip, max, window_secs) {
+    let now = parseInt(Time.now() / 1000)
+    let i = 0
+    while (i < _rl.length()) {
+        let e = _rl[i]
+        if (e["ip"] == ip) {
+            if (now > e["reset"]) {
+                let fresh = {}
+                fresh["ip"]    = ip
+                fresh["count"] = 1
+                fresh["reset"] = now + window_secs
+                _rl[i] = fresh
+                return true
+            }
+            let nc = e["count"] + 1
+            let upd = {}
+            upd["ip"]    = ip
+            upd["count"] = nc
+            upd["reset"] = e["reset"]
+            _rl[i] = upd
+            return nc <= max
+        }
+        i = i + 1
+    }
+    let entry = {}
+    entry["ip"]    = ip
+    entry["count"] = 1
+    entry["reset"] = now + window_secs
+    _rl.push(entry)
+    return true
+}
