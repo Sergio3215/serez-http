@@ -1,11 +1,9 @@
 // WebSocket connection handler
 //
-// PENDIENTE: requiere que serez-code core implemente:
-//   Crypto.sha1base64(s)        — SHA-1 + base64 para el handshake
-//   Socket.recvWsFrame(conn_id) — decodifica frame WebSocket, retorna string o null
-//   Socket.sendWsFrame(conn_id, data) — codifica y envía frame WebSocket
-//
-// La API ya está definida y lista. Activar cuando el core lo soporte.
+// Usa las primitivas WebSocket del core serez-code (ya soportadas):
+//   Crypto.sha1base64(s)              — SHA-1 + base64 para el handshake (Sec-WebSocket-Accept)
+//   Socket.recvWsFrame(conn_id)       — decodifica un frame WebSocket (RFC 6455), retorna string o null
+//   Socket.sendWsFrame(conn_id, data) — codifica y envía un frame de texto WebSocket
 
 export public class WsConn {
     public WsConn(conn_id, req) {
