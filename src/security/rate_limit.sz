@@ -11,7 +11,7 @@ fn _rateLimit(ip, max, window_secs) {
         let e = _rl[i]
         if (e["ip"] == ip) {
             if (now > e["reset"]) {
-                let fresh = {}
+                let fresh <string, any> = ()
                 fresh["ip"]    = ip
                 fresh["count"] = 1
                 fresh["reset"] = now + window_secs
@@ -19,7 +19,7 @@ fn _rateLimit(ip, max, window_secs) {
                 return true
             }
             let nc = e["count"] + 1
-            let upd = {}
+            let upd <string, any> = ()
             upd["ip"]    = ip
             upd["count"] = nc
             upd["reset"] = e["reset"]
@@ -28,7 +28,7 @@ fn _rateLimit(ip, max, window_secs) {
         }
         i = i + 1
     }
-    let entry = {}
+    let entry <string, any> = ()
     entry["ip"]    = ip
     entry["count"] = 1
     entry["reset"] = now + window_secs

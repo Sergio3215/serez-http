@@ -54,7 +54,7 @@ export public class Response {
     public _send(ct, body) {
         if (this.sent) { return }
         this.sent = true
-        let st = _statusText(this.code)
+        let st = this._statusText(this.code)
         let r = "HTTP/1.1 " + this.code + " " + st + "\r\n"
         r = r + "Content-Type: " + ct + "\r\n"
         r = r + "Content-Length: " + body.length() + "\r\n"
@@ -67,21 +67,21 @@ export public class Response {
         r = r + "\r\n" + body
         Socket.send(this.conn_id, r)
     }
-}
 
-fn _statusText(code) {
-    if (code == 200) { return "OK" }
-    if (code == 201) { return "Created" }
-    if (code == 204) { return "No Content" }
-    if (code == 301) { return "Moved Permanently" }
-    if (code == 302) { return "Found" }
-    if (code == 400) { return "Bad Request" }
-    if (code == 401) { return "Unauthorized" }
-    if (code == 403) { return "Forbidden" }
-    if (code == 404) { return "Not Found" }
-    if (code == 405) { return "Method Not Allowed" }
-    if (code == 415) { return "Unsupported Media Type" }
-    if (code == 429) { return "Too Many Requests" }
-    if (code == 500) { return "Internal Server Error" }
-    return "Unknown"
+    public _statusText(code) {
+        if (code == 200) { return "OK" }
+        if (code == 201) { return "Created" }
+        if (code == 204) { return "No Content" }
+        if (code == 301) { return "Moved Permanently" }
+        if (code == 302) { return "Found" }
+        if (code == 400) { return "Bad Request" }
+        if (code == 401) { return "Unauthorized" }
+        if (code == 403) { return "Forbidden" }
+        if (code == 404) { return "Not Found" }
+        if (code == 405) { return "Method Not Allowed" }
+        if (code == 415) { return "Unsupported Media Type" }
+        if (code == 429) { return "Too Many Requests" }
+        if (code == 500) { return "Internal Server Error" }
+        return "Unknown"
+    }
 }

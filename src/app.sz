@@ -18,7 +18,7 @@ export public class App {
     }
 
     public GET(path, handler) {
-        let r = {}
+        let r <string, any> = ()
         r["method"]  = "GET"
         r["path"]    = path
         r["handler"] = handler
@@ -26,7 +26,7 @@ export public class App {
     }
 
     public POST(path, handler) {
-        let r = {}
+        let r <string, any> = ()
         r["method"]  = "POST"
         r["path"]    = path
         r["handler"] = handler
@@ -34,7 +34,7 @@ export public class App {
     }
 
     public PUT(path, handler) {
-        let r = {}
+        let r <string, any> = ()
         r["method"]  = "PUT"
         r["path"]    = path
         r["handler"] = handler
@@ -42,7 +42,7 @@ export public class App {
     }
 
     public delete(path, handler) {
-        let r = {}
+        let r <string, any> = ()
         r["method"]  = "DELETE"
         r["path"]    = path
         r["handler"] = handler
@@ -50,7 +50,7 @@ export public class App {
     }
 
     public ws(path, handler) {
-        let r = {}
+        let r <string, any> = ()
         r["method"]  = "WS"
         r["path"]    = path
         r["handler"] = handler
@@ -85,7 +85,7 @@ export public class App {
                     let res = new Response(conn)
                     this._dispatch(req, res)
                     if (!res.sent) {
-                        let e = {}
+                        let e <string, any> = ()
                         e["error"] = "no response sent"
                         res.status(500).json(e)
                     }
@@ -114,7 +114,7 @@ export public class App {
             i = i + 1
         }
         if (!matched && !res.sent) {
-            let nf = {}
+            let nf <string, any> = ()
             nf["error"] = "Not Found"
             nf["path"]  = req["path"]
             res.status(404).json(nf)
