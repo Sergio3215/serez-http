@@ -1,6 +1,6 @@
 {
   "name": "serez-http",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "HTTP/WebSocket server library for Serez-Code — Express/Flask-style API",
   "main": "index.sz",
   "author": "Sergio3215",
