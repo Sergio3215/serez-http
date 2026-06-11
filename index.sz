@@ -5,16 +5,21 @@
 //   import "serez-http"
 //
 // Main API:
-//   App                        ← server class (get/post/put/delete/ws/use/error/listen)
+//   App                        ← server class (GET/POST/PUT/delete/ws/addMw/error/listen)
 //   WsConn                     ← WebSocket connection (on/send/listen)
 //
 // Utilities (available after import):
 //   parseRequest(raw)          ← parse raw TCP string into request dict
 //   matchRoute(pattern, path)  ← route matching with :params
-//   corsMiddleware(...)        ← CORS middleware factory
 //
-// Security built into App:
-//   app.rateLimit(ip, max, window_secs) → bool
+// Security built into App (nativo — ver nota de semántica en app.sz):
+//   app.cors(origin, methods, headers)       ← CORS headers + preflight OPTIONS 204
+//   app.header(key, value)                   ← header global en todas las respuestas
+//   app.rateLimitRoute(path, max, win_secs)  ← 429 al superar el límite por ruta
+//
+// DEPRECADO (roto por semántica de valor — los módulos no comparten estado):
+//   corsMiddleware(...)  → usar app.cors(...)
+//   _rateLimit(...)      → usar app.rateLimitRoute(...)
 
 import "src/request"
 import "src/response"

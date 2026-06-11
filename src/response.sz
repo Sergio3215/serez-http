@@ -1,12 +1,18 @@
 // HTTP response builder
+//
+// NOTA de semántica serez-code: los objetos van por VALOR — un handler que
+// recibe `res` muta una COPIA. Eso funciona porque send() escribe al socket
+// (efecto externo) y status().header().send() se encadenan sobre la MISMA
+// copia. Lo que NO funciona es mutar `res` en un middleware y esperar que el
+// handler lo vea: por eso los headers globales (CORS, etc.) los acumula App
+// y entran por el constructor (`extra`).
 
 export public class Response {
-    public Response(conn_id) {
+    public Response(conn_id, extra) {
         this.conn_id = conn_id
         this.code = 200
-        this._extra = []
+        this._extra = extra
         this.sent = false
-        this._next_pending = false
     }
 
     public status(code) {

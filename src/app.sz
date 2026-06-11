@@ -4,17 +4,40 @@
 //   app.GET(path, handler)    app.POST(path, handler)
 //   app.PUT(path, handler)    app.delete(path, handler)
 //   app.ws(path, handler)
-//   app.addMw(fn(req,res,next){})   ← middleware (use() is a keyword)
+//   app.addMw(fn(req,res,next){})         ← middleware (use() es keyword)
+//   app.header(key, value)                ← header global en TODAS las respuestas
+//   app.cors(origin, methods, headers)    ← CORS nativo (headers + preflight OPTIONS)
+//   app.rateLimitRoute(path, max, secs)   ← límite de requests por ruta y ventana
 //   app.error(fn(err,req,res){})
 //   app.listen(port, fn(){})
 //
 // Note: single-threaded — one connection at a time.
+//
+// SEMÁNTICA serez-code (objetos por VALOR): el estado por-request vive en
+// CAMPOS de App — la cadena listen→_dispatch→_runMw corre como métodos del
+// `app` top-level y muta en el lugar, y los closures `fn(){ this.x = ... }`
+// creados dentro de métodos mutan el this vivo (mismo patrón que serez-ui).
+// Un middleware NO puede inyectar headers mutando `res` (recibe una copia):
+// para headers usar app.header()/app.cors(). El middleware SÍ puede responder
+// (res.status(...).send(...) escribe directo al socket) y cortar la cadena
+// no llamando a next().
+
+use permissions { Time }
 
 export public class App {
     public App() {
-        this.routes = []
+        this.routes      = []
         this.middlewares = []
         this.err_handler = null
+        this._headers    = []     // headers globales (app.header / app.cors)
+        this._cors_on    = false
+        this._mw_next    = false  // flag del next() del middleware en curso
+        // rate limit por ruta (arrays paralelos: índice = regla)
+        this._rl_paths   = []
+        this._rl_max     = []
+        this._rl_window  = []
+        this._rl_count   = []
+        this._rl_reset   = []
     }
 
     public GET(path, handler) {
@@ -65,8 +88,49 @@ export public class App {
         this.err_handler = handler
     }
 
-    public rateLimit(ip, max, window_secs) {
-        return _rateLimit(ip, max, window_secs)
+    // Header global incluido en todas las respuestas.
+    public header(key, value) {
+        this._headers.push(key + ": " + value)
+    }
+
+    // CORS nativo: agrega los headers a todas las respuestas y contesta
+    // el preflight OPTIONS con 204 automáticamente.
+    public cors(origin, methods, allowed_headers) {
+        this._cors_on = true
+        this._headers.push("Access-Control-Allow-Origin: " + origin)
+        this._headers.push("Access-Control-Allow-Methods: " + methods)
+        this._headers.push("Access-Control-Allow-Headers: " + allowed_headers)
+    }
+
+    // Límite de requests para una ruta exacta dentro de una ventana (segundos).
+    // (Por ruta y servidor — no por IP: el Socket del core aún no expone la IP
+    // del peer en el request.)
+    public rateLimitRoute(path, max, window_secs) {
+        this._rl_paths.push(path)
+        this._rl_max.push(max)
+        this._rl_window.push(window_secs)
+        this._rl_count.push(0)
+        this._rl_reset.push(0)
+    }
+
+    // true si la ruta superó su límite (el caller responde 429).
+    public _rateLimited(path) {
+        let i = 0
+        while (i < this._rl_paths.length()) {
+            if (this._rl_paths[i] == path) {
+                let now = parseInt(Time.now() / 1000)
+                if (now > this._rl_reset[i]) {
+                    this._rl_count[i] = 1
+                    this._rl_reset[i] = now + this._rl_window[i]
+                    return false
+                }
+                if (this._rl_count[i] >= this._rl_max[i]) { return true }
+                this._rl_count[i] = this._rl_count[i] + 1
+                return false
+            }
+            i = i + 1
+        }
+        return false
     }
 
     public listen(port, callback) {
@@ -82,12 +146,11 @@ export public class App {
                 if (req["upgrade"] == "websocket") {
                     this._handleWs(req, conn)
                 } else {
-                    let res = new Response(conn)
-                    this._dispatch(req, res)
-                    if (!res.sent) {
-                        let e <string, any> = ()
-                        e["error"] = "no response sent"
-                        res.status(500).json(e)
+                    let res = new Response(conn, this._headers)
+                    if (this._cors_on && req["method"] == "OPTIONS") {
+                        res.status(204).send("")
+                    } else {
+                        this._dispatch(req, res)
                     }
                     Socket.close(conn)
                 }
@@ -96,9 +159,14 @@ export public class App {
     }
 
     public _dispatch(req, res) {
+        if (this._rateLimited(req["path"])) {
+            let rl <string, any> = ()
+            rl["error"] = "Too Many Requests"
+            res.status(429).json(rl)
+            return
+        }
         let ok = this._runMw(req, res)
         if (!ok) { return }
-        if (res.sent) { return }
         let i = 0
         let matched = false
         while (i < this.routes.length() && !matched) {
@@ -113,7 +181,7 @@ export public class App {
             }
             i = i + 1
         }
-        if (!matched && !res.sent) {
+        if (!matched) {
             let nf <string, any> = ()
             nf["error"] = "Not Found"
             nf["path"]  = req["path"]
@@ -124,11 +192,10 @@ export public class App {
     public _runMw(req, res) {
         let i = 0
         while (i < this.middlewares.length()) {
-            res._next_pending = false
+            this._mw_next = false
             let mw = this.middlewares[i]
-            mw(req, res, fn() { res._next_pending = true })
-            if (!res._next_pending) { return false }
-            if (res.sent) { return false }
+            mw(req, res, fn() { this._mw_next = true })
+            if (!this._mw_next) { return false }
             i = i + 1
         }
         return true
