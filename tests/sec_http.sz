@@ -1,0 +1,67 @@
+// sec_http.sz — Tests de seguridad para serez-http (parseRequest + matchRoute)
+
+import "src/request"
+import "src/router"
+
+// ── parseRequest: string vacío no debe crashear ────────────────────────────────
+test("parseRequest: string vacío → no crashea", () => {
+    let r = parseRequest("")
+    assert(r != null, "retorna dict no nulo")
+    assert(r["path"] == "/", "path default /")
+    // método: split("") por " " → [""] → method = "" (el parser no asume GET)
+    assert(r["body"] == "", "body vacío")
+})
+
+// ── parseRequest: sin cabecera de request line ────────────────────────────────
+test("parseRequest: solo headers sin request line", () => {
+    let raw = "Host: localhost\r\nContent-Type: text/plain\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r != null, "no crashea")
+    // method puede ser el primer token de la primera línea
+    assert(r["method"].length() > 0, "método no vacío")
+})
+
+// ── parseRequest: inyección CRLF en header value ──────────────────────────────
+test("parseRequest: CRLF en valor de header queda en la línea partida", () => {
+    // El parser hace split por CRLF, por lo que un valor con CRLF
+    // se convierte en dos líneas — el segundo se interpreta como otro header.
+    // Verificamos que no crashea y que el body queda correcto.
+    let raw = "GET / HTTP/1.1\r\nX-Test: legit\r\nX-Injected: evil\r\n\r\ncuerpo"
+    let r = parseRequest(raw)
+    assert(r["body"] == "cuerpo", "body intacto")
+    assert(r["method"] == "GET", "método intacto")
+})
+
+// ── parseRequest: ruta con caracteres especiales ──────────────────────────────
+test("parseRequest: path con caracteres URL-encoded", () => {
+    let raw = "GET /search%20term?q=hello%20world HTTP/1.1\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["path"].includes("%20"), "URL encoding preservado (parser no decodifica)")
+})
+
+// ── parseRequest: body muy largo no cuelga ────────────────────────────────────
+test("parseRequest: headers larga no crashea", () => {
+    let big = "GET / HTTP/1.1\r\nX-Data: "
+    let i = 0
+    while (i < 50) { big = big + "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; i = i + 1 }
+    big = big + "\r\n\r\n"
+    let r = parseRequest(big)
+    assert(r["method"] == "GET", "no crashea con header muy largo")
+})
+
+// ── matchRoute: path con doble slash ─────────────────────────────────────────
+test("matchRoute: patrón y path con doble segmento vacío", () => {
+    // /users// tiene 3 segmentos ("", "users", "") vs /users/:id tiene 3
+    // No debe crashear
+    let p = matchRoute("/users/:id", "/users//")
+    // Resultado puede ser null (tres vs dos segmentos) o params con id=""
+    assert(true, "no crashea con double slash")
+})
+
+// ── matchRoute: path traversal con .. ─────────────────────────────────────────
+test("matchRoute: .. en path no coincide con ruta normal", () => {
+    let p = matchRoute("/admin/panel", "/../admin/panel")
+    assert(p == null, "path con .. no debe hacer match con ruta limpia")
+})
+
+summary()

@@ -22,7 +22,7 @@
 // (res.status(...).send(...) escribe directo al socket) y cortar la cadena
 // no llamando a next().
 
-use permissions { Time }
+use permissions { Time, Socket }
 
 export public class App {
     public App() {

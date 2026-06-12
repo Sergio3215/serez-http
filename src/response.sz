@@ -7,6 +7,8 @@
 // handler lo vea: por eso los headers globales (CORS, etc.) los acumula App
 // y entran por el constructor (`extra`).
 
+use permissions { Socket }
+
 export public class Response {
     public Response(conn_id, extra) {
         this.conn_id = conn_id

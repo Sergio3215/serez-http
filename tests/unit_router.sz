@@ -1,0 +1,50 @@
+// unit_router.sz — Tests para serez-http/src/router.sz (matchRoute)
+
+import "src/router"
+
+// ── Rutas exactas ─────────────────────────────────────────────────────────────
+test("matchRoute: ruta exacta / coincide", () => {
+    let p = matchRoute("/", "/")
+    assert(p != null, "params no nulo")
+    assert(p.length() == 0, "sin params")
+})
+test("matchRoute: ruta exacta /about coincide", () => {
+    let p = matchRoute("/about", "/about")
+    assert(p != null, "coincide")
+})
+test("matchRoute: rutas distintas no coinciden", () => {
+    let p = matchRoute("/about", "/contact")
+    assert(p == null, "no coincide")
+})
+
+// ── Segmentos distintos ───────────────────────────────────────────────────────
+test("matchRoute: diferente número de segmentos → null", () => {
+    let p = matchRoute("/a/b", "/a")
+    assert(p == null, "diferente profundidad")
+})
+
+// ── Parámetros :param ─────────────────────────────────────────────────────────
+test("matchRoute: captura :id", () => {
+    let p = matchRoute("/users/:id", "/users/42")
+    assert(p != null, "match con parámetro")
+    assert(p["id"] == "42", "id capturado")
+})
+test("matchRoute: captura múltiples params", () => {
+    let p = matchRoute("/repos/:owner/:repo", "/repos/sergio/app")
+    assert(p != null, "match con dos params")
+    assert(p["owner"] == "sergio", "owner correcto")
+    assert(p["repo"] == "app", "repo correcto")
+})
+test("matchRoute: param con guiones en valor", () => {
+    let p = matchRoute("/post/:slug", "/post/mi-articulo-2026")
+    assert(p != null, "match con guion en valor")
+    assert(p["slug"] == "mi-articulo-2026", "slug correcto")
+})
+test("matchRoute: param vacío (segmento vacío) sin crash", () => {
+    // /users// → segmento vacío string vacío
+    let p = matchRoute("/users/:id", "/users/")
+    // Devuelve params con id="" — el router no valida, solo captura
+    assert(p != null, "no crashea con segmento vacío")
+})
+
+summary()

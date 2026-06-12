@@ -5,6 +5,8 @@
 //   Socket.recvWsFrame(conn_id)       — decodifica un frame WebSocket (RFC 6455), retorna string o null
 //   Socket.sendWsFrame(conn_id, data) — codifica y envía un frame de texto WebSocket
 
+use permissions { Socket }
+
 export public class WsConn {
     public WsConn(conn_id, req) {
         this.conn_id = conn_id

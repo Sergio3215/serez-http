@@ -1,0 +1,79 @@
+// unit_request.sz — Tests para serez-http/src/request.sz (parseRequest)
+
+import "src/request"
+
+// ── Método y ruta básica ──────────────────────────────────────────────────────
+test("parseRequest: GET /", () => {
+    let raw = "GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["method"] == "GET", "método GET")
+    assert(r["path"] == "/", "path raíz")
+})
+test("parseRequest: POST /api/data", () => {
+    let raw = "POST /api/data HTTP/1.1\r\nContent-Type: application/json\r\n\r\n{}"
+    let r = parseRequest(raw)
+    assert(r["method"] == "POST", "método POST")
+    assert(r["path"] == "/api/data", "path correcto")
+})
+test("parseRequest: body separado por \\r\\n\\r\\n", () => {
+    let raw = "POST /echo HTTP/1.1\r\nContent-Type: text/plain\r\n\r\nhola mundo"
+    let r = parseRequest(raw)
+    assert(r["body"] == "hola mundo", "body extraído")
+})
+
+// ── Headers ───────────────────────────────────────────────────────────────────
+test("parseRequest: header content-type en minúsculas", () => {
+    let raw = "GET / HTTP/1.1\r\nContent-Type: application/json\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["content_type"] == "application/json", "content-type extraído")
+})
+test("parseRequest: header authorization", () => {
+    let raw = "GET /secure HTTP/1.1\r\nAuthorization: Bearer token123\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["authorization"] == "Bearer token123", "authorization extraído")
+})
+test("parseRequest: headers normalizados a minúsculas", () => {
+    let raw = "GET / HTTP/1.1\r\nX-Custom-Header: value\r\n\r\n"
+    let r = parseRequest(raw)
+    let headers = r["headers"]
+    let v = headers["x-custom-header"]
+    assert(v == "value", "header en minúsculas")
+})
+
+// ── Query string ──────────────────────────────────────────────────────────────
+test("parseRequest: query string simple", () => {
+    let raw = "GET /search?q=hello&page=2 HTTP/1.1\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["path"] == "/search", "path sin query")
+    let q = r["query"]
+    assert(q["q"] == "hello", "param q")
+    assert(q["page"] == "2", "param page")
+})
+test("parseRequest: sin query string → query vacío", () => {
+    let raw = "GET /about HTTP/1.1\r\n\r\n"
+    let r = parseRequest(raw)
+    let q = r["query"]
+    assert(q.length() == 0, "query vacío sin ?")
+})
+
+// ── WebSocket / Upgrade ───────────────────────────────────────────────────────
+test("parseRequest: upgrade websocket", () => {
+    let raw = "GET /ws HTTP/1.1\r\nUpgrade: websocket\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["upgrade"] == "websocket", "upgrade=websocket")
+    assert(r["ws_key"] == "dGhlIHNhbXBsZSBub25jZQ==", "ws_key extraído")
+})
+
+// ── X-Forwarded-For ───────────────────────────────────────────────────────────
+test("parseRequest: X-Forwarded-For extrae IP", () => {
+    let raw = "GET / HTTP/1.1\r\nX-Forwarded-For: 203.0.113.1\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["ip"] == "203.0.113.1", "IP del header XFF")
+})
+test("parseRequest: sin XFF → ip = unknown", () => {
+    let raw = "GET / HTTP/1.1\r\n\r\n"
+    let r = parseRequest(raw)
+    assert(r["ip"] == "unknown", "default ip=unknown")
+})
+
+summary()
