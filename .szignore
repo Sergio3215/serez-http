@@ -3,3 +3,5 @@ publish.ps1
 implementacion_servidor.md
 *.ps1
 *.sh
+tests/
+/tests/
